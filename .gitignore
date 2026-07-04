@@ -1,0 +1,8 @@
+node_modules/
+dist/
+data/
+.env
+accounts.json
+*.log
+.DS_Store
+bin/lark

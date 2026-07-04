@@ -1,0 +1,12 @@
+{
+  "accounts": {
+    "default": {
+      "appId": "cli_xxx",
+      "appSecret": "xxx",
+      "encryptKey": "xxx",
+      "verificationToken": "xxx",
+      "brand": "feishu",
+      "enabled": true
+    }
+  }
+}
