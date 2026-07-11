@@ -1,5 +1,6 @@
 import { ConfigManager } from './config-manager.js';
 import { startDaemon, stopDaemon, restartDaemon, showStatus, runForeground } from './daemon.js';
+import { upgradeZClaw } from './upgrade.js';
 import { start, stop } from '../index.js';
 import { loadConfig, getDataDir, envSchema } from '../config.js';
 import type { CliCommand } from './args.js';
@@ -44,6 +45,11 @@ export async function executeCommand(command: CliCommand): Promise<void> {
     case 'status': {
       const dataDir = getDataDirFromConfig();
       showStatus(dataDir);
+      return;
+    }
+
+    case 'upgrade': {
+      upgradeZClaw(command.packageManager);
       return;
     }
 

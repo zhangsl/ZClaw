@@ -211,6 +211,10 @@ zclaw status
 # 重启 / 停止
 zclaw restart
 zclaw stop
+
+# 升级到最新版本
+zclaw upgrade
+zclaw upgrade --pm pnpm
 ```
 
 ### 账号管理

@@ -7,6 +7,7 @@ export type CliCommand =
   | { type: 'status' }
   | { type: 'account'; subcommand: 'list' | 'add' | 'remove' | 'set-model'; args: string[]; flags: Record<string, string | boolean | undefined> }
   | { type: 'task'; subcommand: 'list' | 'add' | 'remove'; args: string[]; flags: Record<string, string | boolean | undefined> }
+  | { type: 'upgrade'; packageManager: string }
   | { type: 'help' };
 
 export function parseCliArguments(argv: string[]): CliCommand {
@@ -32,6 +33,19 @@ export function parseCliArguments(argv: string[]): CliCommand {
       return { type: 'restart' };
     case 'status':
       return { type: 'status' };
+
+    case 'upgrade': {
+      const { values } = parseArgs({
+        args: rawArgs,
+        options: { pm: { type: 'string', default: 'npm' } },
+        allowPositionals: true,
+      });
+      const pm = values.pm as string;
+      if (!['npm', 'pnpm', 'yarn'].includes(pm)) {
+        throw new Error('--pm must be one of npm, pnpm, yarn');
+      }
+      return { type: 'upgrade', packageManager: pm };
+    }
 
     case 'account': {
       if (!subcommand || !['list', 'add', 'remove', 'set-model'].includes(subcommand)) {
@@ -95,6 +109,7 @@ Commands:
   stop                          Stop daemon
   restart                       Restart daemon
   status                        Show daemon status
+  upgrade [--pm npm|pnpm|yarn]  Upgrade ZClaw to the latest version
 
   account list                  List configured Feishu accounts
   account add <id> --app-id <id> --app-secret <secret> [options]

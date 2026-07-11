@@ -211,6 +211,10 @@ zclaw status
 # Restart / stop
 zclaw restart
 zclaw stop
+
+# Upgrade to latest version
+zclaw upgrade
+zclaw upgrade --pm pnpm
 ```
 
 ### Account management
