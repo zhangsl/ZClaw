@@ -192,6 +192,61 @@ Each enabled account gets its own workspace, WebSocket connection, and Claude ag
 
 `enabledTools` supports exact names and `*` wildcards (e.g. `lark_*` enables all Lark tools).
 
+## CLI Usage
+
+After building or installing globally, `zclaw` is available as a command-line tool.
+
+### Daemon control
+
+```bash
+# Start in foreground
+zclaw start
+
+# Start as daemon
+zclaw start --daemon
+
+# Check status
+zclaw status
+
+# Restart / stop
+zclaw restart
+zclaw stop
+```
+
+### Account management
+
+```bash
+zclaw account list
+zclaw account add mybot --app-id cli_xxx --app-secret xxx
+zclaw account remove mybot
+zclaw account set-model mybot claude-sonnet-4-7
+```
+
+### Scheduled task management
+
+```bash
+zclaw task list
+zclaw task add daily-report \
+  --name "Daily Report" \
+  --cron "0 18 * * 1-5" \
+  --workspace mybot \
+  --action-type send_message \
+  --action-payload '{"chat_id":"oc_xxx","text":"请填写日报"}'
+zclaw task remove daily-report
+```
+
+Management commands edit `accounts.json` / `tasks.json`. Run `zclaw restart` to apply changes to a running daemon.
+
+## NPM Publish
+
+```bash
+pnpm run build
+npm pack --dry-run
+npm publish
+```
+
+The package exposes the `zclaw` binary and bundles the `lark-cli` binary for macOS x86_64.
+
 ## Development
 
 ```bash

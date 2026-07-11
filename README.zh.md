@@ -192,6 +192,61 @@ cp tasks.json.example tasks.json
 
 `enabledTools` 支持精确工具名和 `*` 通配符，例如 `lark_*` 会启用所有 Lark 工具。
 
+## CLI 使用
+
+构建或全局安装后，`zclaw` 可作为命令行工具使用。
+
+### 守护进程控制
+
+```bash
+# 前台启动
+zclaw start
+
+# 后台守护进程启动
+zclaw start --daemon
+
+# 查看状态
+zclaw status
+
+# 重启 / 停止
+zclaw restart
+zclaw stop
+```
+
+### 账号管理
+
+```bash
+zclaw account list
+zclaw account add mybot --app-id cli_xxx --app-secret xxx
+zclaw account remove mybot
+zclaw account set-model mybot claude-sonnet-4-7
+```
+
+### 定时任务管理
+
+```bash
+zclaw task list
+zclaw task add daily-report \
+  --name "日报提醒" \
+  --cron "0 18 * * 1-5" \
+  --workspace mybot \
+  --action-type send_message \
+  --action-payload '{"chat_id":"oc_xxx","text":"请填写日报"}'
+zclaw task remove daily-report
+```
+
+管理命令会修改 `accounts.json` / `tasks.json`，修改后执行 `zclaw restart` 使运行中的守护进程生效。
+
+## NPM 发布
+
+```bash
+pnpm run build
+npm pack --dry-run
+npm publish
+```
+
+包会暴露 `zclaw` 二进制命令，并附带 macOS x86_64 的 `lark-cli` 二进制。
+
 ## 开发与测试
 
 ```bash

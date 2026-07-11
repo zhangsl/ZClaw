@@ -1,20 +1,21 @@
 #!/usr/bin/env node
-import { start, stop } from '../src/index.js';
+import { parseCliArguments, printHelp } from '../src/cli/args.js';
+import { executeCommand } from '../src/cli/commands.js';
 
 async function main(): Promise<void> {
-  const runtime = await start();
+  const command = parseCliArguments(process.argv);
 
-  process.on('SIGINT', async () => {
-    console.info('\n[zclaw] Received SIGINT, shutting down...');
-    await stop(runtime);
+  if (command.type === 'help') {
+    printHelp();
     process.exit(0);
-  });
+  }
 
-  process.on('SIGTERM', async () => {
-    console.info('\n[zclaw] Received SIGTERM, shutting down...');
-    await stop(runtime);
-    process.exit(0);
-  });
+  try {
+    await executeCommand(command);
+  } catch (err) {
+    console.error(`[zclaw] Error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
