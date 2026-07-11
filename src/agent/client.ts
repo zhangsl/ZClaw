@@ -1,8 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { ZClawConfig } from '../config.js';
 
 export interface ToolExecutor {
   execute: (name: string, input: Record<string, unknown>) => Promise<string>;
+}
+
+export interface AgentClientOptions {
+  apiKey: string;
+  baseURL?: string;
+  model: string;
+  maxTokens: number;
 }
 
 export class AgentClient {
@@ -10,13 +16,13 @@ export class AgentClient {
   private model: string;
   private maxTokens: number;
 
-  constructor(config: ZClawConfig) {
+  constructor(options: AgentClientOptions) {
     this.anthropic = new Anthropic({
-      apiKey: config.env.ANTHROPIC_API_KEY,
-      ...(config.env.ANTHROPIC_BASE_URL ? { baseURL: config.env.ANTHROPIC_BASE_URL } : {}),
+      apiKey: options.apiKey,
+      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
     });
-    this.model = config.env.CLAUDE_MODEL;
-    this.maxTokens = config.env.CLAUDE_MAX_TOKENS;
+    this.model = options.model;
+    this.maxTokens = options.maxTokens;
   }
 
   async callClaude(params: {

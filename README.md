@@ -159,16 +159,50 @@ Add multiple accounts to `accounts.json`:
       "appId": "cli_xxx",
       "appSecret": "xxx",
       "brand": "feishu",
-      "enabled": true
+      "enabled": true,
+      "agent": {
+        "systemPrompt": "You are an HR assistant. Answer in Chinese.",
+        "model": "claude-sonnet-4-7",
+        "maxTokens": 2048,
+        "enabledTools": ["lark_*"]
+      }
     },
     "it_bot": {
       "appId": "cli_yyy",
       "appSecret": "yyy",
       "brand": "feishu",
-      "enabled": true
+      "enabled": true,
+      "agent": {
+        "systemPrompt": "You are an IT support assistant. Answer in English.",
+        "model": "claude-sonnet-4-7",
+        "maxTokens": 4096,
+        "enabledTools": ["lark_*", "scheduler_*"]
+      }
     }
   }
 }
 ```
 
-Each enabled account gets its own workspace and WebSocket connection.
+Each enabled account gets its own workspace, WebSocket connection, and Claude agent instance. The per-account `agent` field lets you customize the system prompt, model, max tokens, and available tools. If omitted, account falls back to the global environment variables.
+
+`enabledTools` supports exact names and `*` wildcards (e.g. `lark_*` enables all Lark tools).
+
+## Development
+
+```bash
+# Type check
+pnpm typecheck
+
+# Build
+pnpm build
+
+# Run tests
+pnpm test
+
+# Development mode (hot reload)
+pnpm dev
+```
+
+## License
+
+[LICENSE](./LICENSE)

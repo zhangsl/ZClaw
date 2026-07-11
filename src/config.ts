@@ -22,6 +22,15 @@ export const envSchema = z.object({
 
 export type EnvConfig = z.infer<typeof envSchema>;
 
+export const agentConfigSchema = z.object({
+  systemPrompt: z.string().optional(),
+  model: z.string().optional(),
+  maxTokens: z.coerce.number().optional(),
+  enabledTools: z.array(z.string()).optional(),
+});
+
+export type AgentConfig = z.infer<typeof agentConfigSchema>;
+
 export const feishuAccountSchema = z.object({
   appId: z.string().min(1),
   appSecret: z.string().min(1),
@@ -29,6 +38,7 @@ export const feishuAccountSchema = z.object({
   verificationToken: z.string().optional(),
   brand: z.enum(['feishu', 'lark']).default('feishu'),
   enabled: z.boolean().default(true),
+  agent: agentConfigSchema.optional(),
 });
 
 export type FeishuAccountConfig = z.infer<typeof feishuAccountSchema>;

@@ -3,7 +3,7 @@ import type { ZClawConfig } from '../config.js';
 import type { FeishuAccount } from '../feishu/accounts.js';
 import type { MessageContext } from '../feishu/types.js';
 import { sendTextLark } from '../feishu/sender.js';
-import { AgentClient } from './client.js';
+import { AgentClient, type AgentClientOptions } from './client.js';
 import * as sessionManager from './session.js';
 import type { LarkCliRunner } from '../lark-cli/runner.js';
 import { executeLarkTool } from '../lark-cli/tool-executor.js';
@@ -11,30 +11,58 @@ import { getLarkTools } from '../lark-cli/tools/index.js';
 import { executeSchedulerTool } from '../scheduler/tool-executor.js';
 import { getSchedulerTools } from '../scheduler/tools.js';
 import { downloadResources, resourceToClaudeBlocks, getWorkspaceMediaDir } from '../feishu/media.js';
+import { addReaction, removeReaction } from '../feishu/reactions.js';
 
 export interface DispatcherDeps {
   config: ZClawConfig;
   cliRunner: LarkCliRunner;
 }
 
-const SYSTEM_PROMPT = `You are ZClaw, a helpful AI assistant in Feishu (Lark). Be concise and helpful.
+const DEFAULT_SYSTEM_PROMPT = `You are ZClaw, a helpful AI assistant in Feishu (Lark). Be concise and helpful.
 When you need to perform Feishu operations like sending messages, creating documents, uploading files, sending cards, or updating cards, use the available lark_* tools.
 When a user asks about scheduled tasks, wants to list them, create a new one, update one, or delete one, use the scheduler_* tools.`;
 
 export class AgentDispatcher {
-  private agent: AgentClient;
+  private agents = new Map<string, AgentClient>();
   private cliRunner: LarkCliRunner;
   private config: ZClawConfig;
 
   constructor(deps: DispatcherDeps) {
     this.config = deps.config;
-    this.agent = new AgentClient(deps.config);
     this.cliRunner = deps.cliRunner;
+  }
+
+  private getAgentClient(account: FeishuAccount): AgentClient {
+    const cached = this.agents.get(account.accountId);
+    if (cached) return cached;
+
+    const agentCfg = account.agent;
+    const options: AgentClientOptions = {
+      apiKey: this.config.env.ANTHROPIC_API_KEY,
+      ...(this.config.env.ANTHROPIC_BASE_URL ? { baseURL: this.config.env.ANTHROPIC_BASE_URL } : {}),
+      model: agentCfg?.model ?? this.config.env.CLAUDE_MODEL,
+      maxTokens: agentCfg?.maxTokens ?? this.config.env.CLAUDE_MAX_TOKENS,
+    };
+    const client = new AgentClient(options);
+    this.agents.set(account.accountId, client);
+    return client;
+  }
+
+  private getSystemPrompt(account: FeishuAccount): string {
+    return account.agent?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+  }
+
+  private getTools(account: FeishuAccount): Anthropic.Messages.Tool[] {
+    const allTools = [...getLarkTools(), ...getSchedulerTools()];
+    const enabled = account.agent?.enabledTools;
+    if (!enabled || enabled.length === 0) return allTools;
+    return allTools.filter((tool) => enabled.some((pattern) => matchToolPattern(tool.name, pattern)));
   }
 
   async dispatch(ctx: MessageContext, account: FeishuAccount): Promise<void> {
     const workspaceId = account.accountId;
     const maxMessages = this.config.env.ZCLAW_SESSION_MAX_MESSAGES;
+    const agent = this.getAgentClient(account);
 
     const { session } = await sessionManager.getOrCreateSession(workspaceId, {
       account,
@@ -44,43 +72,50 @@ export class AgentDispatcher {
       threadId: ctx.threadId,
     });
 
-    // Build user content blocks (text + downloaded images/documents)
-    const userBlocks = await this.buildUserContentBlocks(workspaceId, ctx, account);
+    // Show a typing/ack indicator while processing
+    const reactionId = await addReaction(account, ctx.messageId, 'Get');
 
-    if (userBlocks.length === 1 && userBlocks[0]?.type === 'text') {
-      sessionManager.addUserMessage(workspaceId, session.id, userBlocks[0].text);
-    } else {
-      sessionManager.addUserContentBlocks(workspaceId, session.id, userBlocks);
-    }
+    try {
+      // Build user content blocks (text + downloaded images/documents)
+      const userBlocks = await this.buildUserContentBlocks(workspaceId, ctx, account);
 
-    const history = sessionManager.loadSessionMessages(workspaceId, session.id, maxMessages);
-    const messages = sessionManager.formatMessagesForClaude(history);
+      if (userBlocks.length === 1 && userBlocks[0]?.type === 'text') {
+        sessionManager.addUserMessage(workspaceId, session.id, userBlocks[0].text);
+      } else {
+        sessionManager.addUserContentBlocks(workspaceId, session.id, userBlocks);
+      }
 
-    const tools = [...getLarkTools(), ...getSchedulerTools()];
-    const { finalText } = await this.agent.runWithTools({
-      messages,
-      tools,
-      system: SYSTEM_PROMPT,
-      toolExecutor: {
-        execute: async (name, input) => {
-          if (name.startsWith('scheduler_')) {
-            return executeSchedulerTool(workspaceId, name, input);
-          }
-          return executeLarkTool({ runner: this.cliRunner, account }, name, input);
+      const history = sessionManager.loadSessionMessages(workspaceId, session.id, maxMessages);
+      const messages = sessionManager.formatMessagesForClaude(history);
+
+      const tools = this.getTools(account);
+      const { finalText } = await agent.runWithTools({
+        messages,
+        tools,
+        system: this.getSystemPrompt(account),
+        toolExecutor: {
+          execute: async (name, input) => {
+            if (name.startsWith('scheduler_')) {
+              return executeSchedulerTool(workspaceId, name, input);
+            }
+            return executeLarkTool({ runner: this.cliRunner, account }, name, input);
+          },
         },
-      },
-    });
+      });
 
-    sessionManager.addAssistantMessage(workspaceId, session.id, finalText);
-    sessionManager.trimSessionMessages(workspaceId, session.id, maxMessages);
+      sessionManager.addAssistantMessage(workspaceId, session.id, finalText);
+      sessionManager.trimSessionMessages(workspaceId, session.id, maxMessages);
 
-    await sendTextLark({
-      account,
-      to: ctx.chatId,
-      text: finalText,
-      replyToMessageId: ctx.messageId,
-      replyInThread: Boolean(ctx.threadId),
-    });
+      await sendTextLark({
+        account,
+        to: ctx.chatId,
+        text: finalText,
+        replyToMessageId: ctx.messageId,
+        replyInThread: Boolean(ctx.threadId),
+      });
+    } finally {
+      await removeReaction(account, ctx.messageId, reactionId);
+    }
   }
 
   async dispatchCardAction(params: {
@@ -94,6 +129,7 @@ export class AgentDispatcher {
   }): Promise<void> {
     const workspaceId = params.account.accountId;
     const maxMessages = this.config.env.ZCLAW_SESSION_MAX_MESSAGES;
+    const agent = this.getAgentClient(params.account);
 
     const { session } = await sessionManager.getOrCreateSession(workspaceId, {
       account: params.account,
@@ -110,11 +146,11 @@ export class AgentDispatcher {
     const history = sessionManager.loadSessionMessages(workspaceId, session.id, maxMessages);
     const messages = sessionManager.formatMessagesForClaude(history);
 
-    const tools = [...getLarkTools(), ...getSchedulerTools()];
-    const { finalText } = await this.agent.runWithTools({
+    const tools = this.getTools(params.account);
+    const { finalText } = await agent.runWithTools({
       messages,
       tools,
-      system: SYSTEM_PROMPT,
+      system: this.getSystemPrompt(params.account),
       toolExecutor: {
         execute: async (name, input) => {
           if (name.startsWith('scheduler_')) {
@@ -169,5 +205,13 @@ export class AgentDispatcher {
 }
 
 export function buildSystemPrompt(): Anthropic.TextBlockParam {
-  return { type: 'text', text: SYSTEM_PROMPT };
+  return { type: 'text', text: DEFAULT_SYSTEM_PROMPT };
+}
+
+function matchToolPattern(name: string, pattern: string): boolean {
+  if (pattern.includes('*')) {
+    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    return regex.test(name);
+  }
+  return name === pattern;
 }

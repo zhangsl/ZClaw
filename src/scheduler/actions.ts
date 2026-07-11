@@ -59,7 +59,14 @@ const invokeClaudeAction: TaskActionHandler = async (ctx, payload) => {
     throw new Error('invoke_claude requires prompt');
   }
 
-  const agent = new AgentClient(ctx.config);
+  const account = getAccount(ctx, send_to?.account_id);
+  const agentCfg = account?.agent;
+  const agent = new AgentClient({
+    apiKey: ctx.config.env.ANTHROPIC_API_KEY,
+    ...(ctx.config.env.ANTHROPIC_BASE_URL ? { baseURL: ctx.config.env.ANTHROPIC_BASE_URL } : {}),
+    model: agentCfg?.model ?? ctx.config.env.CLAUDE_MODEL,
+    maxTokens: agentCfg?.maxTokens ?? ctx.config.env.CLAUDE_MAX_TOKENS,
+  });
   const response = await agent.callClaude({
     messages: [{ role: 'user', content: prompt }],
     ...(system ? { system } : {}),
@@ -73,7 +80,6 @@ const invokeClaudeAction: TaskActionHandler = async (ctx, payload) => {
   if (send_to) {
     const to = send_to.chat_id ?? send_to.user_id;
     if (to) {
-      const account = getAccount(ctx, send_to.account_id);
       if (!account) {
         throw new Error(`No account found for send_to`);
       }
