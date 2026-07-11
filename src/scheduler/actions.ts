@@ -72,7 +72,7 @@ const invokeClaudeAction: TaskActionHandler = async (ctx, payload) => {
     ...(system ? { system } : {}),
   });
 
-  const text = response.content
+  const text = (response.content ?? [])
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');

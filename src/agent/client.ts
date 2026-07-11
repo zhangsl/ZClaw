@@ -30,7 +30,7 @@ export class AgentClient {
     tools?: Anthropic.Messages.Tool[];
     system?: string | Anthropic.TextBlockParam[];
   }): Promise<Anthropic.Messages.Message> {
-    return this.anthropic.messages.create(
+    const message = await this.anthropic.messages.create(
       {
         model: this.model,
         max_tokens: this.maxTokens,
@@ -40,6 +40,12 @@ export class AgentClient {
       },
       { timeout: 120000 }, // 2 minutes, avoid SDK non-streaming timeout error
     );
+
+    if (!Array.isArray(message.content)) {
+      throw new Error(`Claude returned unexpected content: ${JSON.stringify(message.content)}`);
+    }
+
+    return message;
   }
 
   async runWithTools(params: {
