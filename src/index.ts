@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { ZClawConfig } from './config.js';
 import { loadConfig, getDataDir } from './config.js';
 import { initDb, closeDb } from './db/connection.js';
@@ -12,6 +13,7 @@ import { SchedulerEngine } from './scheduler/engine.js';
 import { syncTasksFromConfig } from './scheduler/repository.js';
 import { registerSchedulerEngine } from './scheduler/registry.js';
 import type { FeishuAccount } from './feishu/accounts.js';
+import { configureLogger, setLogLevel, info } from './utils/logger.js';
 import {
   SHARED_WORKSPACE_ID,
   ensureWorkspaceDir,
@@ -31,6 +33,14 @@ export interface ZClawRuntime {
 export async function start(): Promise<ZClawRuntime> {
   const config = loadConfig();
   const dataDir = getDataDir(config);
+
+  // Configure logging to both console and file for production debugging
+  setLogLevel(config.env.ZCLAW_LOG_LEVEL);
+  configureLogger({
+    logDir: path.join(dataDir, 'logs'),
+    console: true,
+    file: true,
+  });
 
   // Migrate legacy data (data/zclaw.db, data/media/) to new workspace layout
   const accountIds = Object.keys(config.accounts.accounts);
@@ -87,7 +97,7 @@ export async function start(): Promise<ZClawRuntime> {
     },
   };
 
-  console.info(`[zclaw] Starting ${enabledAccounts.length} Feishu account(s)...`);
+  info(`Starting ${enabledAccounts.length} Feishu account(s)`, 'zclaw');
   await startAllMonitors(enabledAccounts, callbacks, abortController.signal);
 
   // Sync and start scheduler engines

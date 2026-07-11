@@ -237,6 +237,16 @@ zclaw task remove daily-report
 
 管理命令会修改 `accounts.json` / `tasks.json`，修改后执行 `zclaw restart` 使运行中的守护进程生效。
 
+## 日志
+
+日志会同时输出到控制台和 `data/logs/zclaw-YYYY-MM-DD.log`。通过 `ZCLAW_LOG_LEVEL` 控制详细程度：
+
+```bash
+ZCLAW_LOG_LEVEL=debug zclaw start --daemon
+```
+
+级别：`debug`、`info`（默认）、`warn`、`error`。
+
 ## NPM 发布
 
 ```bash

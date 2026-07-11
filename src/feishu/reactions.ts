@@ -1,5 +1,6 @@
 import { LarkClient } from './client.js';
 import type { FeishuAccount } from './accounts.js';
+import { warn } from '../utils/logger.js';
 
 export interface ReactionResult {
   reactionId: string;
@@ -34,7 +35,7 @@ export async function addReaction(
     });
     return res.data?.reaction_id;
   } catch (err) {
-    console.warn(`[reactions:${account.accountId}] failed to add reaction to ${messageId}:`, err);
+    warn('Failed to add reaction', `reactions:${account.accountId}`, { messageId, error: err instanceof Error ? err.message : String(err) });
     return undefined;
   }
 }
@@ -58,6 +59,6 @@ export async function removeReaction(
       url: `/open-apis/im/v1/messages/${normalizedMessageId}/reactions/${reactionId}`,
     });
   } catch (err) {
-    console.warn(`[reactions:${account.accountId}] failed to remove reaction ${reactionId}:`, err);
+    warn('Failed to remove reaction', `reactions:${account.accountId}`, { messageId, reactionId, error: err instanceof Error ? err.message : String(err) });
   }
 }

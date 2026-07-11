@@ -3,6 +3,7 @@ import type { ScheduledTask, TaskExecutionContext } from './types.js';
 import { getActionHandler } from './actions.js';
 import { listEnabledTasks, updateTaskRun } from './repository.js';
 import { getNextRunAt, validateCron } from './parser.js';
+import { info, warn, error } from '../utils/logger.js';
 
 export class SchedulerEngine {
   private ctx: TaskExecutionContext;
@@ -22,7 +23,7 @@ export class SchedulerEngine {
       this.scheduleTask(task);
     }
 
-    console.info(`[scheduler] Started with ${tasks.length} enabled task(s) in workspace ${this.ctx.workspaceId}`);
+    info(`Started with ${tasks.length} enabled task(s)`, `scheduler:${this.ctx.workspaceId}`);
   }
 
   stop(): void {
@@ -40,7 +41,7 @@ export class SchedulerEngine {
 
   private scheduleTask(task: ScheduledTask): void {
     if (!task.enabled || !validateCron(task.cron)) {
-      console.warn(`[scheduler] Skipping invalid/disabled task: ${task.id}`);
+      warn(`Skipping invalid/disabled task: ${task.id}`, `scheduler:${this.ctx.workspaceId}`);
       return;
     }
 
@@ -60,21 +61,21 @@ export class SchedulerEngine {
   private async executeTask(task: ScheduledTask): Promise<void> {
     const handler = getActionHandler(task.action.type);
     if (!handler) {
-      console.error(`[scheduler:${task.id}] Unknown action type: ${task.action.type}`);
+      error(`Unknown action type: ${task.action.type}`, `scheduler:${task.id}`);
       this.recordRun(task, false, `Unknown action type: ${task.action.type}`);
       return;
     }
 
-    console.info(`[scheduler:${task.id}] Executing action ${task.action.type}`);
+    info(`Executing action ${task.action.type}`, `scheduler:${task.id}`);
     const startedAt = new Date();
 
     try {
       await handler(this.ctx, task.action.payload);
       this.recordRun(task, true);
-      console.info(`[scheduler:${task.id}] Completed in ${Date.now() - startedAt.getTime()}ms`);
+      info(`Completed in ${Date.now() - startedAt.getTime()}ms`, `scheduler:${task.id}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`[scheduler:${task.id}] Failed: ${message}`);
+      error(`Failed: ${message}`, `scheduler:${task.id}`);
       this.recordRun(task, false, message);
     }
   }

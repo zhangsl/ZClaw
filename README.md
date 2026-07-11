@@ -237,6 +237,16 @@ zclaw task remove daily-report
 
 Management commands edit `accounts.json` / `tasks.json`. Run `zclaw restart` to apply changes to a running daemon.
 
+## Logging
+
+Logs are written to both console and `data/logs/zclaw-YYYY-MM-DD.log`. Set `ZCLAW_LOG_LEVEL` to control verbosity:
+
+```bash
+ZCLAW_LOG_LEVEL=debug zclaw start --daemon
+```
+
+Levels: `debug`, `info` (default), `warn`, `error`.
+
 ## NPM Publish
 
 ```bash

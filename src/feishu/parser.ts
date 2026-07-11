@@ -1,6 +1,7 @@
 import type { MessageContext } from './types.js';
 import { convertMessageContent } from './converters/content-converter.js';
 import { extractMentions, isBotMentioned, stripBotMentions } from './mention.js';
+import { error } from '../utils/logger.js';
 
 export interface FeishuMessageEvent {
   header?: {
@@ -72,7 +73,7 @@ export async function parseMessageEvent(
 ): Promise<MessageContext> {
   const msg = event.event?.message ?? event.message;
   if (!msg) {
-    console.error('[parser] Missing message. Full event:', JSON.stringify(event).slice(0, 500));
+    error('Missing message in Feishu event', 'parser', { eventPreview: JSON.stringify(event).slice(0, 500) });
     throw new Error('Missing message in Feishu event');
   }
 

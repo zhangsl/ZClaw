@@ -1,5 +1,6 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import type { FeishuAccount } from './accounts.js';
+import { warn } from '../utils/logger.js';
 
 const clients = new Map<string, LarkClient>();
 
@@ -85,7 +86,7 @@ export class LarkClient {
         return { openId: bot.open_id, name: bot.name ?? 'ZClaw' };
       }
     } catch (err) {
-      console.warn(`[lark-client:${this.account.accountId}] probe failed:`, err);
+      warn('Probe failed', `lark-client:${this.account.accountId}`, { error: err instanceof Error ? err.message : String(err) });
     }
     return undefined;
   }

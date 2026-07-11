@@ -4,6 +4,7 @@ import type { CardActionContext, MessageContext } from './types.js';
 import type { GateConfig } from './gate.js';
 import { parseMessageEvent, type FeishuMessageEvent } from './parser.js';
 import { checkMessageGate } from './gate.js';
+import { info, warn, error } from '../utils/logger.js';
 
 export interface EventHandlerCallbacks {
   onMessage: (ctx: MessageContext, account: FeishuAccount) => Promise<void>;
@@ -73,26 +74,26 @@ export async function startAccountMonitor(
           const ctx = await parseMessageEvent(event, account.accountId, botOpenId);
           const gate = checkMessageGate(ctx, callbacks.gateConfig ?? {});
           if (!gate.allowed) {
-            console.info(`[events:${account.accountId}] message gated: ${gate.reason}`);
+            info(`Message gated: ${gate.reason}`, `events:${account.accountId}`, { chatId: ctx.chatId, senderId: ctx.senderId });
             return;
           }
           await callbacks.onMessage(ctx, account);
         } catch (err) {
-          console.error(`[events:${account.accountId}] failed to handle message`, err);
+          error(`Failed to handle message`, `events:${account.accountId}`, { error: err instanceof Error ? err.message : String(err) });
         }
       },
       'card.action.trigger': async (data: unknown) => {
         if (!callbacks.onCardAction) return;
         const ctx = parseCardActionEvent(data);
         if (!ctx) {
-          console.warn(`[events:${account.accountId}] invalid card action event`);
+          warn('Invalid card action event', `events:${account.accountId}`);
           return;
         }
         ctx.accountId = account.accountId;
         try {
           await callbacks.onCardAction(ctx, account);
         } catch (err) {
-          console.error(`[events:${account.accountId}] failed to handle card action`, err);
+          error('Failed to handle card action', `events:${account.accountId}`, { error: err instanceof Error ? err.message : String(err) });
         }
       },
       'im.message.reaction.created_v1': async () => {
