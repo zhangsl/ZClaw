@@ -12,6 +12,7 @@ import { executeSchedulerTool } from '../scheduler/tool-executor.js';
 import { getSchedulerTools } from '../scheduler/tools.js';
 import { downloadResources, resourceToClaudeBlocks, getWorkspaceMediaDir } from '../feishu/media.js';
 import { addReaction, removeReaction } from '../feishu/reactions.js';
+import { error } from '../utils/logger.js';
 
 export interface DispatcherDeps {
   config: ZClawConfig;
@@ -113,6 +114,16 @@ export class AgentDispatcher {
         replyToMessageId: ctx.messageId,
         replyInThread: Boolean(ctx.threadId),
       });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error('Failed to process message', `dispatcher:${account.accountId}`, { error: message, chatId: ctx.chatId, senderId: ctx.senderId });
+      await sendTextLark({
+        account,
+        to: ctx.chatId,
+        text: `抱歉，处理消息时出错了：${message}`,
+        replyToMessageId: ctx.messageId,
+        replyInThread: Boolean(ctx.threadId),
+      });
     } finally {
       await removeReaction(account, ctx.messageId, reactionId);
     }
@@ -143,34 +154,46 @@ export class AgentDispatcher {
     const syntheticText = `用户点击了卡片按钮: ${actionText}`;
     sessionManager.addUserMessage(workspaceId, session.id, syntheticText);
 
-    const history = sessionManager.loadSessionMessages(workspaceId, session.id, maxMessages);
-    const messages = sessionManager.formatMessagesForClaude(history);
+    try {
+      const history = sessionManager.loadSessionMessages(workspaceId, session.id, maxMessages);
+      const messages = sessionManager.formatMessagesForClaude(history);
 
-    const tools = this.getTools(params.account);
-    const { finalText } = await agent.runWithTools({
-      messages,
-      tools,
-      system: this.getSystemPrompt(params.account),
-      toolExecutor: {
-        execute: async (name, input) => {
-          if (name.startsWith('scheduler_')) {
-            return executeSchedulerTool(workspaceId, name, input);
-          }
-          return executeLarkTool({ runner: this.cliRunner, account: params.account }, name, input);
+      const tools = this.getTools(params.account);
+      const { finalText } = await agent.runWithTools({
+        messages,
+        tools,
+        system: this.getSystemPrompt(params.account),
+        toolExecutor: {
+          execute: async (name, input) => {
+            if (name.startsWith('scheduler_')) {
+              return executeSchedulerTool(workspaceId, name, input);
+            }
+            return executeLarkTool({ runner: this.cliRunner, account: params.account }, name, input);
+          },
         },
-      },
-    });
+      });
 
-    sessionManager.addAssistantMessage(workspaceId, session.id, finalText);
-    sessionManager.trimSessionMessages(workspaceId, session.id, maxMessages);
+      sessionManager.addAssistantMessage(workspaceId, session.id, finalText);
+      sessionManager.trimSessionMessages(workspaceId, session.id, maxMessages);
 
-    await sendTextLark({
-      account: params.account,
-      to: params.chatId,
-      text: finalText,
-      replyToMessageId: params.messageId,
-      replyInThread: Boolean(params.threadId),
-    });
+      await sendTextLark({
+        account: params.account,
+        to: params.chatId,
+        text: finalText,
+        replyToMessageId: params.messageId,
+        replyInThread: Boolean(params.threadId),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error('Failed to process card action', `dispatcher:${params.account.accountId}`, { error: message, chatId: params.chatId, senderId: params.senderId });
+      await sendTextLark({
+        account: params.account,
+        to: params.chatId,
+        text: `抱歉，处理卡片操作时出错了：${message}`,
+        replyToMessageId: params.messageId,
+        replyInThread: Boolean(params.threadId),
+      });
+    }
   }
 
   private async buildUserContentBlocks(

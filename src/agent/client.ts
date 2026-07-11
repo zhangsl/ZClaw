@@ -11,6 +11,10 @@ export interface AgentClientOptions {
   maxTokens: number;
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class AgentClient {
   private anthropic: Anthropic;
   private model: string;
@@ -29,23 +33,40 @@ export class AgentClient {
     messages: Anthropic.Messages.MessageParam[];
     tools?: Anthropic.Messages.Tool[];
     system?: string | Anthropic.TextBlockParam[];
-  }): Promise<Anthropic.Messages.Message> {
-    const message = await this.anthropic.messages.create(
-      {
-        model: this.model,
-        max_tokens: this.maxTokens,
-        messages: params.messages,
-        tools: params.tools,
-        ...(params.system ? { system: params.system } : {}),
-      },
-      { timeout: 120000 }, // 2 minutes, avoid SDK non-streaming timeout error
-    );
+  }, retry = 3): Promise<Anthropic.Messages.Message> {
+    let lastError: Error | undefined;
 
-    if (!Array.isArray(message.content)) {
-      throw new Error(`Claude returned unexpected content: ${JSON.stringify(message.content)}`);
+    for (let attempt = 0; attempt < retry; attempt++) {
+      try {
+        const message = await this.anthropic.messages.create(
+          {
+            model: this.model,
+            max_tokens: this.maxTokens,
+            messages: params.messages,
+            tools: params.tools,
+            ...(params.system ? { system: params.system } : {}),
+          },
+          { timeout: 120000 }, // 2 minutes, avoid SDK non-streaming timeout error
+        );
+
+        if (Array.isArray(message.content)) {
+          return message;
+        }
+
+        // Claude occasionally returns null content; retry before giving up
+        lastError = new Error(`Claude returned unexpected content: ${JSON.stringify(message.content)}`);
+        if (attempt < retry - 1) {
+          await delay(500 * (attempt + 1));
+        }
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < retry - 1) {
+          await delay(500 * (attempt + 1));
+        }
+      }
     }
 
-    return message;
+    throw lastError ?? new Error('Claude API request failed');
   }
 
   async runWithTools(params: {
