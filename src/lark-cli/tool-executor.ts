@@ -32,6 +32,83 @@ export async function executeLarkTool(
       return JSON.stringify(result.data ?? { ok: true });
     }
 
+    case 'lark_read_doc': {
+      const args = [
+        'docs',
+        '+fetch',
+        '--doc',
+        input.doc_url_or_token as string,
+        '--doc-format',
+        (input.format as string) ?? 'markdown',
+        '--scope',
+        (input.scope as string) ?? 'full',
+      ];
+      const result = await ctx.runner.exec(args);
+      return JSON.stringify(result.data ?? { ok: true });
+    }
+
+    case 'lark_update_doc': {
+      const command = (input.command as string) ?? 'append';
+      const args = [
+        'docs',
+        '+update',
+        '--doc',
+        input.doc_url_or_token as string,
+        '--command',
+        command,
+        '--content',
+        input.content as string,
+        '--doc-format',
+        'markdown',
+      ];
+      if (command === 'str_replace' && input.pattern) {
+        args.push('--pattern', input.pattern as string);
+      }
+      const result = await ctx.runner.exec(args);
+      return JSON.stringify(result.data ?? { ok: true });
+    }
+
+    case 'lark_create_sheet': {
+      const args = ['sheets', '+create', '--title', input.title as string];
+      if (input.headers && Array.isArray(input.headers)) {
+        args.push('--headers', JSON.stringify(input.headers));
+      }
+      if (input.data && Array.isArray(input.data)) {
+        args.push('--data', JSON.stringify(input.data));
+      }
+      if (input.folder_token) {
+        args.push('--folder-token', input.folder_token as string);
+      }
+      const result = await ctx.runner.exec(args);
+      return JSON.stringify(result.data ?? { ok: true });
+    }
+
+    case 'lark_read_sheet': {
+      const format = (input.format as string) ?? 'json';
+      const spreadsheet = input.spreadsheet_url_or_token as string;
+      const isUrl = spreadsheet.startsWith('http://') || spreadsheet.startsWith('https://');
+      const args = isUrl
+        ? ['sheets', format === 'csv' ? '+csv-get' : '+cells-get', '--url', spreadsheet]
+        : ['sheets', format === 'csv' ? '+csv-get' : '+cells-get', '--spreadsheet-token', spreadsheet];
+      args.push('--sheet-name', input.sheet_name as string);
+      args.push('--range', input.range as string);
+      const result = await ctx.runner.exec(args);
+      return JSON.stringify(result.data ?? { ok: true });
+    }
+
+    case 'lark_update_sheet': {
+      const spreadsheet = input.spreadsheet_url_or_token as string;
+      const isUrl = spreadsheet.startsWith('http://') || spreadsheet.startsWith('https://');
+      const args = isUrl
+        ? ['sheets', '+cells-set', '--url', spreadsheet]
+        : ['sheets', '+cells-set', '--spreadsheet-token', spreadsheet];
+      args.push('--sheet-name', input.sheet_name as string);
+      args.push('--range', input.range as string);
+      args.push('--cells', JSON.stringify(input.values));
+      const result = await ctx.runner.exec(args);
+      return JSON.stringify(result.data ?? { ok: true });
+    }
+
     case 'lark_upload_file': {
       const result = await ctx.runner.uploadFile({
         filePath: input.file_path as string,

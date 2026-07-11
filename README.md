@@ -90,6 +90,11 @@ ZClaw exposes the following tools to Claude:
 
 - `lark_send_message` — Send a Feishu message
 - `lark_create_doc` — Create a Feishu document
+- `lark_read_doc` — Read a Feishu document (Markdown or XML)
+- `lark_update_doc` — Update a Feishu document (append, overwrite, or str_replace)
+- `lark_create_sheet` — Create a Feishu spreadsheet
+- `lark_read_sheet` — Read cells from a Feishu spreadsheet (JSON or CSV)
+- `lark_update_sheet` — Write values to a Feishu spreadsheet
 - `lark_upload_file` — Upload a file to Feishu Drive
 - `lark_list_chat_members` — List chat members
 - `lark_send_card` — Send an interactive card

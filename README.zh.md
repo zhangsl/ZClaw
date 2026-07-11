@@ -90,6 +90,11 @@ ZClaw 向 Claude 暴露以下工具：
 
 - `lark_send_message` — 发送飞书消息
 - `lark_create_doc` — 创建飞书文档
+- `lark_read_doc` — 读取飞书文档（Markdown 或 XML）
+- `lark_update_doc` — 更新飞书文档（追加、覆盖或替换文本）
+- `lark_create_sheet` — 创建飞书表格
+- `lark_read_sheet` — 读取飞书表格单元格（JSON 或 CSV）
+- `lark_update_sheet` — 写入飞书表格单元格
 - `lark_upload_file` — 上传文件到飞书云盘
 - `lark_list_chat_members` — 列出群成员
 - `lark_send_card` — 发送交互式卡片

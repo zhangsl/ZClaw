@@ -17,15 +17,105 @@ export const larkSendMessageTool: Anthropic.Messages.Tool = {
 
 export const larkCreateDocTool: Anthropic.Messages.Tool = {
   name: 'lark_create_doc',
-  description: 'Create a Feishu document.',
+  description: 'Create a Feishu document. Content can be provided as Markdown.',
   input_schema: {
     type: 'object',
     properties: {
       title: { type: 'string' },
-      content: { type: 'string', description: 'Optional document content' },
+      content: { type: 'string', description: 'Optional document content in Markdown' },
       folder_token: { type: 'string', description: 'Optional parent folder token' },
     },
     required: ['title'],
+  },
+};
+
+export const larkReadDocTool: Anthropic.Messages.Tool = {
+  name: 'lark_read_doc',
+  description: 'Read the content of a Feishu document by URL or document token.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      doc_url_or_token: { type: 'string', description: 'Feishu document URL or document token' },
+      format: { type: 'string', enum: ['markdown', 'xml'], description: 'Output format' },
+      scope: { type: 'string', enum: ['full', 'outline'], description: 'Read scope' },
+    },
+    required: ['doc_url_or_token'],
+  },
+};
+
+export const larkUpdateDocTool: Anthropic.Messages.Tool = {
+  name: 'lark_update_doc',
+  description: 'Update a Feishu document. Supports append, overwrite, or str_replace.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      doc_url_or_token: { type: 'string', description: 'Feishu document URL or document token' },
+      command: {
+        type: 'string',
+        enum: ['append', 'overwrite', 'str_replace'],
+        description: 'Update command',
+      },
+      content: { type: 'string', description: 'New content in Markdown' },
+      pattern: { type: 'string', description: 'Text to match for str_replace command' },
+    },
+    required: ['doc_url_or_token', 'command', 'content'],
+  },
+};
+
+export const larkCreateSheetTool: Anthropic.Messages.Tool = {
+  name: 'lark_create_sheet',
+  description: 'Create a Feishu spreadsheet with optional headers and initial data.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      headers: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Optional header row as JSON array',
+      },
+      data: {
+        type: 'array',
+        items: { type: 'array', items: { type: 'string' } },
+        description: 'Optional initial data as JSON 2D array of strings',
+      },
+      folder_token: { type: 'string', description: 'Optional parent folder token' },
+    },
+    required: ['title'],
+  },
+};
+
+export const larkReadSheetTool: Anthropic.Messages.Tool = {
+  name: 'lark_read_sheet',
+  description: 'Read a range of cells from a Feishu spreadsheet.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      spreadsheet_url_or_token: { type: 'string', description: 'Spreadsheet URL or token' },
+      sheet_name: { type: 'string', description: 'Sheet name, e.g. Sheet1' },
+      range: { type: 'string', description: 'Cell range in A1 notation, e.g. A1:C10' },
+      format: { type: 'string', enum: ['json', 'csv'], description: 'Output format' },
+    },
+    required: ['spreadsheet_url_or_token', 'sheet_name', 'range'],
+  },
+};
+
+export const larkUpdateSheetTool: Anthropic.Messages.Tool = {
+  name: 'lark_update_sheet',
+  description: 'Write values to a range of cells in a Feishu spreadsheet.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      spreadsheet_url_or_token: { type: 'string', description: 'Spreadsheet URL or token' },
+      sheet_name: { type: 'string', description: 'Sheet name, e.g. Sheet1' },
+      range: { type: 'string', description: 'Cell range in A1 notation, e.g. A1:C10' },
+      values: {
+        type: 'array',
+        items: { type: 'array', items: { type: 'string' } },
+        description: '2D array of strings to write',
+      },
+    },
+    required: ['spreadsheet_url_or_token', 'sheet_name', 'range', 'values'],
   },
 };
 
@@ -86,6 +176,11 @@ export function getLarkTools(): Anthropic.Messages.Tool[] {
   return [
     larkSendMessageTool,
     larkCreateDocTool,
+    larkReadDocTool,
+    larkUpdateDocTool,
+    larkCreateSheetTool,
+    larkReadSheetTool,
+    larkUpdateSheetTool,
     larkUploadFileTool,
     larkListChatMembersTool,
     larkSendCardTool,

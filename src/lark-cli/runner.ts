@@ -86,10 +86,10 @@ export class LarkCliRunner {
   }
 
   async createDoc(params: { title: string; content?: string; folderToken?: string }): Promise<CliEnvelope> {
-    const args = ['doc', '+docs-create'];
+    const args = ['docs', '+create'];
     args.push('--title', params.title);
     if (params.content) args.push('--content', params.content);
-    if (params.folderToken) args.push('--folder-token', params.folderToken);
+    if (params.folderToken) args.push('--parent-token', params.folderToken);
     return this.exec(args);
   }
 
